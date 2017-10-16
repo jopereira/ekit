@@ -46,7 +46,9 @@ Create and join a clique as follows:
 
 ## More information
 
-See the Catalyst documentation: http://atomix.io/catalyst/api/latest/
+Catalyst API documentation: http://atomix.io/catalyst/api/latest/
+
+Catalyst user guide: http://atomix.io/catalyst/docs/
 
 ## License
 
