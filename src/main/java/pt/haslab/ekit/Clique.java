@@ -32,7 +32,7 @@ public class Clique implements Managed<Clique> {
     private final Logger logger = LoggerFactory.getLogger(Clique.class);
 
     private final Transport transport;
-    private final int me;
+    private final int me, min;
     private final Address[] addresses;
 
     private final Connection[] connections;
@@ -46,6 +46,28 @@ public class Clique implements Managed<Clique> {
     private CompletableFuture<Void> closed;
 
     /**
+     * Failure handling mode. The default is {@link #ALL}.
+     */
+    public enum Mode {
+        /**
+         * Requires all processes to be connected. Shuts down if any one fails.
+         */
+        ALL,
+
+        /**
+         * Requires a majority of processes to be connected. Shuts down if a majority
+         * fails. Will keep trying to reconnect to the missing minority.
+         */
+        MAJORITY,
+
+        /**
+         * No requirement on connected processes. Will keep trying to reconnect to
+         * missing processes.
+         */
+        ANY
+    };
+
+    /**
      * Create a new clique.
      *
      * @param transport Catalyst trnasport
@@ -53,9 +75,24 @@ public class Clique implements Managed<Clique> {
      * @param addresses addresses of all processes
      */
     public Clique(Transport transport, int me, Address... addresses) {
+        this(transport, Mode.ALL, me, addresses);
+    }
+
+    /**
+     * Create a new clique.
+     *  @param transport Catalyst trnasport
+     * @param me index of local process
+     * @param addresses addresses of all processes
+     */
+    public Clique(Transport transport, Mode mode, int me, Address... addresses) {
         this.me = me;
         this.addresses = addresses;
         this.transport = transport;
+        switch (mode) {
+            case ALL: min = addresses.length; break;
+            case MAJORITY: min = (addresses.length+1)/2; break;
+            case ANY: default: min = 0; break;
+        }
 
         this.connections = new Connection[addresses.length];
         this.msgHandlers = new ArrayList<>();
@@ -241,7 +278,7 @@ public class Clique implements Managed<Clique> {
         } else {
             loopback = c;
         }
-        if (n == addresses.length && loopback != null) {
+        if (n >= min && loopback != null && !opened.isDone()) {
             logger.info("process {}: open", me);
             opened.complete(this);
         }
@@ -256,7 +293,18 @@ public class Clique implements Managed<Clique> {
 
     private void disconnected(int i) {
         logger.trace("process {}: disconnected from {}", me, i);
-        close();
+        n--;
+        if (closed != null)
+            return;
+        if (n < min || i == me) {
+            logger.info("{} out of {}: not enough connections, closing", n, min);
+            close();
+        } else {
+            connections[i].close();
+            connections[i] = null;
+            if (i < me)
+                connect(i);
+        }
     }
 
     private void report(int i, Throwable t) {
