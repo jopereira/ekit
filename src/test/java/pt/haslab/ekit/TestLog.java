@@ -66,11 +66,11 @@ public class TestLog {
 
         int r = tc.execute(() -> log1.trim(5)).join().get();
 
-        Assert.assertEquals(5, r);
+        Assert.assertEquals(4, r);
 
         tc.execute(() -> log1.close()).join().get();
 
-        final AtomicInteger last =  new AtomicInteger(5);
+        final AtomicInteger last =  new AtomicInteger(4);
 
         Log log2 = new Log(path);
         log2.handler(String.class, (i,m) -> {
