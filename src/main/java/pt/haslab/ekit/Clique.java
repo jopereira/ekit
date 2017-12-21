@@ -297,7 +297,8 @@ public class Clique implements Managed<Clique> {
         if (closed != null)
             return;
         if (n < min || i == me) {
-            logger.info("{} out of {}: not enough connections, closing", n, min);
+            logger.warn("only {} out of {}: not enough connections, closing clique", n, min);
+            logger.info("consider Mode.MAJORITY or Mode.ALL to use an incomplete clique");
             close();
         } else {
             connections[i].close();
