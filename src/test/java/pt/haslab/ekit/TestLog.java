@@ -83,4 +83,22 @@ public class TestLog {
 
         tc.execute(() -> log2.close()).join().get();
     }
+
+    @Test
+    public void testMissingHandler() throws Exception {
+        ThreadContext tc = new SingleThreadContext("proto-%d", new Serializer());
+        String path = tf.newFolder().getAbsolutePath() + "/test";
+
+        Log log1 = new Log(path);
+        tc.execute(() -> log1.open()).join().get();
+
+        int r = tc.execute(() -> log1.append("a string")).join().get();
+
+        log1.close();
+
+        Log log2 = new Log(path);
+        tc.execute(() -> log2.open()).join().get();
+        log2.close();
+
+    }
 }

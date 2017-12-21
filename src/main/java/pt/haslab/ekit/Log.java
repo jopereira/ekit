@@ -3,6 +3,8 @@ package pt.haslab.ekit;
 import io.atomix.catalyst.buffer.Buffer;
 import io.atomix.catalyst.concurrent.ThreadContext;
 import io.atomix.catalyst.util.Managed;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.sql.*;
@@ -18,6 +20,8 @@ import java.util.function.BiConsumer;
  * get replayed in the same order when the process restarts.
  */
 public class Log implements Managed<Log> {
+
+    private final Logger logger = LoggerFactory.getLogger(Log.class);
 
     private final String name;
     private final ExecutorService exec;
@@ -78,7 +82,13 @@ public class Log implements Managed<Log> {
                     tc.execute(() -> {
                         Object record = tc.serializer().readObject(new ByteArrayInputStream(data));
 
-                        handlers.get(record.getClass()).accept(lsn, record);
+                        BiConsumer<Integer, Object> handler = handlers.get(record.getClass());
+
+                        if (handler == null) {
+                            logger.error("no handler for class {}, ignoring log record {}", record.getClass().getName(), lsn);
+                        } else {
+                            handler.accept(lsn, record);
+                        }
 
                     }).join();
                 }
